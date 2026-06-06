@@ -1,5 +1,8 @@
 # GeoPhotoLister
 
+![file](file.png)
+![folder](folder.png)
+
 GeoPhotoLister is a 32-bit and 64-bit Total Commander WLX Lister plugin for
 displaying geotagged JPEG photos on an interactive map.
 
