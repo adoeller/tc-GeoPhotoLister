@@ -66,7 +66,7 @@ Create a Total Commander toolbar button:
 
 ```text
 Command:    <plugin directory>\GeoPhotoListerLauncher.exe
-Parameters: %WL
+Parameters: %Y %WL "/fallback=%P."
 ```
 
 The launcher converts Total Commander's selected-file list into a temporary
@@ -76,6 +76,12 @@ their directly contained JPEG files.
 The launcher also accepts JPEG files and directories directly, including
 multiple command-line arguments. It is built as a Windows GUI application and
 does not open a console window.
+
+When Total Commander's `..` entry is selected, `%WL` is empty. Without `%Y`,
+Total Commander suppresses the entire parameter line when a list parameter is
+empty. `%Y` forces Total Commander to pass the empty list and the remaining
+arguments. `"/fallback=%P."` supplies the current panel directory in that case.
+The fallback is ignored when `%WL` contains selected files or directories.
 
 `GeoPhotoListerLauncher.exe` is the 64-bit launcher.
 `GeoPhotoListerLauncher32.exe` is also included for 32-bit environments.
@@ -267,5 +273,7 @@ Build and package both architectures with:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
+
+The packaged files are written to `dist`.
 
 The packaged files are written to `dist`.
