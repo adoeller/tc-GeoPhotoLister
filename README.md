@@ -22,12 +22,15 @@ collapsible photo list.
 - Shows filenames without extensions on the map
 - Shows the full filename as a tooltip when map filenames are disabled
 - Lists the metadata source used for each positioned photo
-- Lists photos without coordinates as `[Keine Position]`
+- Optionally lists photos without coordinates as `[No Position]`
 - Loads individual JPEGs, directories, and generated `.geophotolist` manifests
 - Loads all JPEGs from the current photo directory with the `D` key
 - Provides standard, satellite, and topographic tile maps
+- Keeps downloaded map tiles in a persistent, size-limited offline cache
+- Prefetches configurable tile rings around the visible map area
 - Supports panning, zooming, fit-to-window, map-style switching, and tile toggle
 - Includes a collapsible, vertically and horizontally scrollable photo list
+- Shows a bottom status bar with the main keyboard shortcuts
 - Centers the selected photo preview without changing the current zoom
 - Includes a launcher for displaying multiple files selected in Total Commander
 
@@ -92,19 +95,22 @@ A `.geophotolist` file is a UTF-8 text file containing one JPEG or directory
 path per line. A generated manifest starts with:
 
 ```text
-GEOPHOTOLIST/1
+GEOPHOTOLIST/1;SOURCE=FILE
 C:\Photos\photo1.jpg
 C:\Photos\photo2.jpg
 C:\MorePhotos
 ```
 
 Blank lines are ignored. Directories are scanned non-recursively.
+Launcher-generated manifests use `SOURCE=FOLDER` when they contain exactly one
+directory. This allows `NoSidebarForFolder` and `NoSidebarForFile` to be applied
+correctly even though Total Commander opens a temporary manifest file.
 
 ## Controls
 
 | Input | Action |
 | --- | --- |
-| Mouse wheel | Zoom in or out |
+| Mouse wheel | Zoom in or out and center the map on the mouse position |
 | Drag map | Pan |
 | Arrow keys | Pan |
 | Escape | Close the Lister, including when the photo list has focus |
@@ -117,6 +123,9 @@ Blank lines are ignored. Directories are scanned non-recursively.
 | `T` | Cycle standard, satellite, and topographic maps |
 | `M` | Toggle map tiles |
 | `1` through `8` | Forward the key to Total Commander |
+
+The bottom status bar shows the primary `D`, `F`, `T`, `M`, and `Escape`
+shortcuts.
 
 ## Location Metadata
 
@@ -163,6 +172,9 @@ treated as disabled.
 | Option | Default | Description |
 | --- | ---: | --- |
 | `useTiles` | `1` | Enables downloaded map tiles. Can be toggled temporarily with `M`. |
+| `requestDelayMs` | `75` | Minimum delay in milliseconds between actual network tile requests, clamped to `0` through `10000`. It also controls the tile-processing timer between `15` and `200` milliseconds. All available cached tiles for the current area are loaded together without this delay. |
+| `prefetchRings` | `2` | Number of additional tile rings downloaded around the visible map area, clamped to `0` through `8`. |
+| `maxBitmaps` | `512` | Maximum number of offline tile files stored in `%TEMP%\GeoPhotoLister`, clamped to `64` through `4096`. The oldest files are deleted first. This value also limits the in-memory tile count. |
 | `showScale` | `1` | Shows the approximate scale at the bottom of the map. |
 | `showCoords` | `1` | Shows map style, zoom level, and center coordinates. |
 | `initialZoom` | `13` | Initial/fallback zoom, clamped to `3` through `19`. Fit-to-window normally selects the displayed zoom. |
@@ -177,12 +189,12 @@ treated as disabled.
 | `thumbnailWorkers` | `2` | Number of parallel workers used to create thumbnails after the map extent is available, clamped to `1` through `16`. |
 | `showFileNames` | `1` | Shows the filename without extension beside each map thumbnail. With `0`, the white marker contains only the preview and the full filename appears as a hover tooltip. |
 | `showThumbnails` | `1` | Shows JPEG previews. With `0`, compact placeholder markers are used. |
+| `showUntaggedPhotos` | `1` | Shows photos without coordinates in the sidebar under `No Position`. With `0`, they are hidden from the sidebar. |
+| `labelCollisionAvoidance` | `1` | Moves overlapping previews by at most 80 pixels horizontally and 50 pixels vertically. If no free position exists within that range, the preview remains at its original position. The selected preview is placed first. |
 | `openOnDoubleClick` | `1` | Opens the original JPEG using its Windows file association when a list entry or map preview is double-clicked. |
 | `sidebarWidth` | `220` | Initial expanded photo-list width, clamped to `120` through `600` pixels. |
 | `NoSidebarForFile` | `0` | Starts with the sidebar collapsed when the Lister receives a file. |
 | `NoSidebarForFolder` | `0` | Starts with the sidebar collapsed when the Lister receives a folder. |
-
-Photos without coordinates are currently always shown in the sidebar.
 
 ### Metadata Options
 
@@ -204,11 +216,46 @@ Tile endpoint templates must contain `{z}`, `{x}`, and `{y}` placeholders.
 | `topoTileEndpoint` | OpenTopoMap | URL template for the topographic map. |
 | `userAgent` | `GeoPhotoLister` | HTTP user-agent sent when downloading tiles. |
 
+### Tile Cache And Prefetching
+
+Downloaded map tiles are stored in `%TEMP%\GeoPhotoLister` and remain available
+across Lister and Total Commander sessions. The exact location is the temporary
+directory of the Windows user running Total Commander.
+
+Cache filenames contain the configured endpoint, map style, zoom, and tile
+coordinates. Tiles from different configured endpoints and map styles can
+therefore coexist. Changing an endpoint causes GeoPhotoLister to use a separate
+set of cache files.
+
+When displaying a map area, GeoPhotoLister first loads all matching cached
+tiles and may request one missing tile during the same processing cycle.
+`requestDelayMs` applies only between network requests; it does not delay
+reading cached files. The processing timer runs every
+`Max(15, Min(200, requestDelayMs))` milliseconds. Waiting for the next allowed
+network request does not block the Lister user interface.
+
+`prefetchRings` extends loading and downloading beyond the currently visible
+area. A value of `0` processes only visible tiles. Higher values make nearby
+panning more likely to use cached tiles, but increase network traffic and cache
+usage.
+
+`maxBitmaps` limits both the number of `.tile` files in the persistent cache and
+the number of tiles held in memory. The limit applies across all endpoints,
+styles, and zoom levels. When the disk limit is exceeded, the oldest downloaded
+cache files are deleted first. Invalid cached files are removed automatically
+when they cannot be decoded.
+
+The cache can be cleared manually by deleting `%TEMP%\GeoPhotoLister` while no
+GeoPhotoLister view is open. The directory is recreated automatically.
+
 Example:
 
 ```ini
 [GeoPhotoLister]
 useTiles=1
+requestDelayMs=75
+prefetchRings=2
+maxBitmaps=512
 showScale=1
 showCoords=1
 initialZoom=13
@@ -219,6 +266,8 @@ workers=4
 thumbnailWorkers=2
 showFileNames=1
 showThumbnails=1
+showUntaggedPhotos=1
+labelCollisionAvoidance=1
 openOnDoubleClick=1
 sidebarWidth=220
 NoSidebarForFile=0
@@ -244,16 +293,11 @@ Lister configuration. They are currently not evaluated by GeoPhotoLister:
 
 ```text
 showGridWhenNoTiles
-showUntaggedPhotos
-labelCollisionAvoidance
 metadataPriority
 mapTypeOrder
 tileEndpoint
-requestDelayMs
 backoffStartMs
 backoffMaxMs
-prefetchRings
-maxBitmaps
 ```
 
 ## Building
@@ -273,7 +317,5 @@ Build and package both architectures with:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
-
-The packaged files are written to `dist`.
 
 The packaged files are written to `dist`.
