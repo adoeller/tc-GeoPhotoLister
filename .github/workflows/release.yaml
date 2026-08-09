@@ -1,0 +1,63 @@
+name: Manuelles Release (vorhandene Assets + optionale Ordner)
+
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: "Changelog-Text für dieses Release"
+        required: true
+        type: string
+      draft:
+        description: "Als Entwurf erstellen?"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "Als Pre-Release markieren?"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository vollständig auschecken
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Projektname und Zeitstempel ermitteln
+        id: meta
+        run: |
+          PROJECT_NAME="${{ github.event.repository.name }}"
+          TIMESTAMP="$(date -u +'%Y%m%d-%H%M%S')"
+          TAG_NAME="${PROJECT_NAME}-${TIMESTAMP}"
+          echo "project_name=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
+          echo "timestamp=$TIMESTAMP" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Vorhandene Assets suchen
+        run: |
+          set -e
+          find . -type f \( \
+              -iname "*.wdx" -o -iname "*.wcx" -o -iname "*.wfx" -o -iname "*.wlx" \
+              -o -iname "*.wdx64" -o -iname "*.wcx64" -o -iname "*.wfx64" -o -iname "*.wlx64" \
+              -o -iname "*.exe" -o -iname "*32.exe" -o -iname "*64.exe" \
+              -o -iname "*.zip" \
+              -o -iname "readme*" \
+              -o -iname "license*" -o -iname "lizenz*" \
+            \) ! -path "./.git/*" \
+              ! -path "./src/*" \
+              ! -path "./source/*" \
+              ! -path "./DLL/*" \
+              ! -path "./standalone/*" \
+            > assets.txt
+
+          if [ ! -s assets.txt ]; then
+            echo "Keine passenden Dateien im Repository gefunden – Abbruch." >&2
+            exit 1
+
