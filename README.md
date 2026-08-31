@@ -18,6 +18,7 @@ collapsible photo list.
 - Reads coordinates in parallel and displays the map extent before thumbnails are generated
 - Generates thumbnails in parallel and adds them progressively to the map
 - Prefers sufficiently large embedded EXIF thumbnails for faster preview generation
+- Detects and removes near-black letterbox and pillarbox borders from thumbnails
 - Shows aspect-ratio-preserving JPEG thumbnails at their map positions
 - Shows filenames without extensions on the map
 - Shows the full filename as a tooltip when map filenames are disabled
@@ -29,6 +30,9 @@ collapsible photo list.
 - Keeps downloaded map tiles in a persistent, size-limited offline cache
 - Prefetches configurable tile rings around the visible map area
 - Supports panning, zooming, fit-to-window, map-style switching, and tile toggle
+- Provides three thumbnail display modes: default (thumbnails and names per INI), active (selected photo full-size, others as dots), and points (all photos as dots)
+- Colors the dot of the selected photo in a configurable highlight color
+- Adapts the map area to the Windows system dark or light mode; overridable per INI
 - Includes a collapsible, vertically and horizontally scrollable photo list
 - Shows a bottom status bar with the main keyboard shortcuts
 - Centers the selected photo preview without changing the current zoom
@@ -118,14 +122,16 @@ correctly even though Total Commander opens a temporary manifest file.
 | Double-click photo-list entry | Open the original JPEG, if enabled |
 | Double-click map preview | Open the original JPEG, if enabled |
 | Sidebar arrow | Collapse or expand the photo list |
+| `Ctrl+D` | Collapse or expand the photo list |
 | `D` | Load all JPEG files from the current photo's directory and apply `NoSidebarForFolder` |
 | `F` | Fit all positioned photos into the map |
 | `T` | Cycle standard, satellite, and topographic maps |
+| `S` | Cycle display modes: **Default** (thumbnails and names per INI settings), **Active** (selected photo full-size, all others as dots), **Points** (all photos as dots) |
 | `M` | Toggle map tiles |
 | `1` through `8` | Forward the key to Total Commander |
 
-The bottom status bar shows the primary `D`, `F`, `T`, `M`, and `Escape`
-shortcuts.
+The bottom status bar shows the primary `Ctrl+D`, `D`, `F`, `T`, `S`, `M`, and
+`Escape` shortcuts, including the current display mode.
 
 ## Location Metadata
 
@@ -167,6 +173,13 @@ the active WLX file. Restart or reopen the Lister view after changing options.
 Boolean values accept `1`, `true`, or `yes` as enabled values. Other values are
 treated as disabled.
 
+### Appearance Options
+
+| Option | Default | Description |
+| --- | ---: | --- |
+| `colorTheme` | `0` | Map area color theme. `0` = follow the Windows system dark/light mode, `1` = always light, `2` = always dark. The sidebar, status bar, and toggle button are system controls and always follow the system theme. |
+| `selectedDot` | `183549` | Highlight color for the dot of the currently selected photo, as a decimal `0xRRGGBB` value. Default is `RGB(2, 204, 253)`. |
+
 ### Map And Viewer Options
 
 | Option | Default | Description |
@@ -190,7 +203,7 @@ treated as disabled.
 | `showFileNames` | `1` | Shows the filename without extension beside each map thumbnail. With `0`, the white marker contains only the preview and the full filename appears as a hover tooltip. |
 | `showThumbnails` | `1` | Shows JPEG previews. With `0`, compact placeholder markers are used. |
 | `showUntaggedPhotos` | `1` | Shows photos without coordinates in the sidebar under `No Position`. With `0`, they are hidden from the sidebar. |
-| `labelCollisionAvoidance` | `1` | Moves overlapping previews by at most 80 pixels horizontally and 50 pixels vertically. If no free position exists within that range, the preview remains at its original position. The selected preview is placed first. |
+| `labelCollisionAvoidance` | `1` | Tries preview positions on both the right and left of each coordinate, then moves them by at most 80 pixels farther horizontally and 50 pixels vertically. If no free position exists, the preview remains at its original right-side position. The selected preview is placed first. |
 | `openOnDoubleClick` | `1` | Opens the original JPEG using its Windows file association when a list entry or map preview is double-clicked. |
 | `sidebarWidth` | `220` | Initial expanded photo-list width, clamped to `120` through `600` pixels. |
 | `NoSidebarForFile` | `0` | Starts with the sidebar collapsed when the Lister receives a file. |
@@ -202,6 +215,7 @@ treated as disabled.
 | --- | ---: | --- |
 | `readEmbeddedXmp` | `1` | Reads XMP contained in JPEG APP1 segments. |
 | `readSidecarXmp` | `1` | Reads a same-name `.xmp` sidecar file. |
+| `ignoreZeroIsland` | `1` | Treats photos whose coordinates are exactly `0, 0` (Gulf of Guinea) or `±180, ±180` as having no position. Such coordinates typically indicate a missing GPS fix rather than an intentional location. Affected photos appear in the sidebar as `[No Position]`. |
 
 EXIF GPS reading is always enabled.
 
@@ -252,6 +266,9 @@ Example:
 
 ```ini
 [GeoPhotoLister]
+colorTheme=0
+selectedDot=183549
+
 useTiles=1
 requestDelayMs=75
 prefetchRings=2
@@ -275,6 +292,7 @@ NoSidebarForFolder=0
 
 readEmbeddedXmp=1
 readSidecarXmp=1
+ignoreZeroIsland=1
 
 standardTileEndpoint=https://tile.openstreetmap.org/{z}/{x}/{y}.png
 satelliteTileEndpoint=https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
@@ -294,7 +312,6 @@ Lister configuration. They are currently not evaluated by GeoPhotoLister:
 ```text
 showGridWhenNoTiles
 metadataPriority
-mapTypeOrder
 tileEndpoint
 backoffStartMs
 backoffMaxMs
