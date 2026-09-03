@@ -177,7 +177,7 @@ treated as disabled.
 
 | Option | Default | Description |
 | --- | ---: | --- |
-| `colorTheme` | `0` | Map area color theme. `0` = follow the Windows system dark/light mode, `1` = always light, `2` = always dark. The sidebar, status bar, and toggle button are system controls and always follow the system theme. |
+| `colorTheme` | `3` | Map area color theme. `3` = follow Total Commander settings (reads `[Colors] DarkMode` from `wincmd.ini`; falls back to the system theme), `0` = follow the Windows system dark/light mode, `1` = always light, `2` = always dark. The sidebar, status bar, and toggle button are system controls and always follow the system theme. |
 | `selectedDot` | `183549` | Highlight color for the dot of the currently selected photo, as a decimal `0xRRGGBB` value. Default is `RGB(2, 204, 253)`. |
 
 ### Map And Viewer Options
@@ -266,7 +266,7 @@ Example:
 
 ```ini
 [GeoPhotoLister]
-colorTheme=0
+colorTheme=3
 selectedDot=183549
 
 useTiles=1
