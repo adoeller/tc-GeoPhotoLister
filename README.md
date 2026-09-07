@@ -1,10 +1,10 @@
 # GeoPhotoLister
 
-![file](file.png)
-![folder](folder.png)
-
 GeoPhotoLister is a 32-bit and 64-bit Total Commander WLX Lister plugin for
 displaying geotagged JPEG photos on an interactive map.
+
+![file](file.png)
+![folder](folder.png)
 
 Each positioned photo is shown at its GPS location with an optional thumbnail
 and filename. Photos without usable coordinates remain available in the
@@ -125,13 +125,14 @@ correctly even though Total Commander opens a temporary manifest file.
 | `Ctrl+D` | Collapse or expand the photo list |
 | `D` | Load all JPEG files from the current photo's directory and apply `NoSidebarForFolder` |
 | `F` | Fit all positioned photos into the map |
-| `T` | Cycle standard, satellite, and topographic maps |
-| `S` | Cycle display modes: **Default** (thumbnails and names per INI settings), **Active** (selected photo full-size, all others as dots), **Points** (all photos as dots) |
-| `M` | Toggle map tiles |
+| `M` | Cycle standard, satellite, and topographic maps |
+| `T` | Cycle display modes: **Default** (thumbnails and names per INI settings), **Active** (selected photo full-size, all others as dots), **Points** (all photos as dots) |
+| `I` | Cycle preview density in **Default** mode: **All** (all photos show a thumbnail), **Active** (only the active photo shows a thumbnail, others are dots), **Off** (dots only). Has no effect in **Active** or **Points** display mode. |
+| `H` | Toggle map tiles |
 | `1` through `8` | Forward the key to Total Commander |
 
-The bottom status bar shows the primary `Ctrl+D`, `D`, `F`, `T`, `S`, `M`, and
-`Escape` shortcuts, including the current display mode.
+The bottom status bar shows the primary `Ctrl+D`, `D`, `F`, `M`, `T`, `I`, `H`, and
+`Escape` shortcuts, including the current display mode and preview density.
 
 ## Location Metadata
 
@@ -201,7 +202,7 @@ treated as disabled.
 | `workers` | `4` | Number of parallel workers used to read EXIF and XMP metadata, clamped to `1` through `32`. |
 | `thumbnailWorkers` | `2` | Number of parallel workers used to create thumbnails after the map extent is available, clamped to `1` through `16`. |
 | `showFileNames` | `1` | Shows the filename without extension beside each map thumbnail. With `0`, the white marker contains only the preview and the full filename appears as a hover tooltip. |
-| `showThumbnails` | `1` | Shows JPEG previews. With `0`, compact placeholder markers are used. |
+| `showThumbnails` | `1` | Initial preview density in **Default** mode. `0` = dots only, `1` = all photos show a thumbnail, `2` = only the active photo shows a thumbnail (selected in the sidebar, or the first positioned photo when nothing is selected); all others appear as dots. Can be changed at runtime with `I`. Has no effect in **Active** or **Points** display mode. |
 | `showUntaggedPhotos` | `1` | Shows photos without coordinates in the sidebar under `No Position`. With `0`, they are hidden from the sidebar. |
 | `labelCollisionAvoidance` | `1` | Tries preview positions on both the right and left of each coordinate, then moves them by at most 80 pixels farther horizontally and 50 pixels vertically. If no free position exists, the preview remains at its original right-side position. The selected preview is placed first. |
 | `openOnDoubleClick` | `1` | Opens the original JPEG using its Windows file association when a list entry or map preview is double-clicked. |
@@ -229,6 +230,9 @@ Tile endpoint templates must contain `{z}`, `{x}`, and `{y}` placeholders.
 | `satelliteTileEndpoint` | Google satellite tiles | URL template for the satellite map. |
 | `topoTileEndpoint` | OpenTopoMap | URL template for the topographic map. |
 | `userAgent` | `GeoPhotoLister` | HTTP user-agent sent when downloading tiles. |
+| `standardMaxZoom` | `19` | Maximum zoom level supported by the standard tile endpoint, clamped to `1` through `19`. When the viewer zoom exceeds this value, tiles from this level are scaled up (overzoom). |
+| `satelliteMaxZoom` | `19` | Maximum zoom level for the satellite tile endpoint. |
+| `topoMaxZoom` | `17` | Maximum zoom level for the topographic tile endpoint. OpenTopoMap tiles are available only up to zoom 17; the default reflects this. |
 
 ### Tile Cache And Prefetching
 
@@ -298,6 +302,9 @@ standardTileEndpoint=https://tile.openstreetmap.org/{z}/{x}/{y}.png
 satelliteTileEndpoint=https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}
 topoTileEndpoint=https://a.tile.opentopomap.org/{z}/{x}/{y}.png
 userAgent=GeoPhotoLister
+standardMaxZoom=19
+satelliteMaxZoom=19
+topoMaxZoom=17
 ```
 
 The configured tile services may have their own usage policies, attribution
